@@ -40,6 +40,13 @@
     stimulus: 0,        // stymulus fiskalny w czasie szoku, % PKB rocznie
     almp: 0,            // aktywizacja zawodowa, % PKB rocznie
     multiplier: 1.0,    // mnożnik fiskalny
+    // --- sztuczna inteligencja (strukturalna utrata pracy umysłowej) ---
+    aiLoss: 0,          // % pracowników umysłowych tracących pracę przez AI
+    aiShare: 40,        // pracownicy umysłowi, % zatrudnionych
+    aiPhase: 12,        // czas wdrożenia AI do pełnego efektu, kwartały
+    aiReabs: 15,        // % zwolnionych wracających do pracy w ciągu roku (po wdrożeniu)
+    aiProd: 2.0,        // wzrost PKB z AI przy pełnym wdrożeniu, %
+    aiWagePrem: 1.4,    // płaca pracownika umysłowego względem przeciętnej
     // --- rynek długu ---
     rate: 2.0,          // realne oprocentowanie długu, %
     premium: 6.0,       // premia za ryzyko: pp na każde 100% PKB ponad próg
@@ -59,6 +66,7 @@
     const almpEff = clamp(p.almp * 18, 0, 0.5);               // 1% PKB => -18% szoku (max 50%)
     const shockEff = noShock ? 0 : p.shock * (1 - almpEff);
     const stimEff = noShock ? 0 : p.stimulus / 100;           // ułamek PKB
+    const aiOn = !noShock && p.aiLoss > 0;
     const stimUnemp = (p.multiplier * stimEff * 100 / p.okun); // pp zmniejszenia bezrobocia
 
     let u = p.u0, unat = p.u0, debt = p.debt, cumDef = 0;
@@ -76,21 +84,28 @@
       }
       if (t > 0) unat += p.hyst * Math.max(0, u - unat);       // histereza: stopa naturalna dryfuje w górę
 
+      // AI: stopniowe wdrożenie, potem powolna reabsorpcja zwolnionych
+      const ph = aiOn ? Math.min(1, t / Math.max(1, p.aiPhase)) : 0;
+      const decay = Math.pow(1 - p.aiReabs / 100, Math.max(0, t - p.aiPhase) / 4);
+      const aiJobs = aiOn ? p.labor * p.aiShare / 100 * p.aiLoss / 100 * ph * decay : 0; // mln osób
+      const uAi = aiJobs / p.labor * 100;                      // pp stopy bezrobocia
+
       const pot = p.gdp * Math.pow(1 + p.growth / 100, t / 4);  // potencjalny PKB w kwartale t
       const sc = pot / p.gdp;                                      // skala (wzrost wydajności, płac, świadczeń)
 
       // 2. PKB wg prawa Okuna (+ efekt stymulusu)
       const gap = u - unat;                          // luka względem (zhisterezowanej) stopy naturalnej
       const stimGDP = inShock ? p.multiplier * stimEff : 0;
-      const gdpGapPct = -p.okun * (u - p.u0) + stimGDP * 100; // % odchylenia od potencjału
+      const gdpGapPct = -p.okun * (u - p.u0) + stimGDP * 100 + p.aiProd * ph; // % odchylenia od potencjału
       const Y = pot * (1 + gdpGapPct / 100);       // PKB roczny (annualizowany)
       const yRatio = Y / pot;
 
       // 3. rynek pracy
       const L = p.labor;
-      const unemployed = L * u / 100;
+      const unemployed = L * (u + uAi) / 100;
       const employed = L - unemployed;
-      const wageBill = employed * p.wage * sc * 12 / 1000;       // mld PLN rocznie
+      const aiWages = aiJobs * p.wage * p.aiWagePrem * sc * 12 / 1000;  // utracone płace umysłowe
+      const wageBill = employed * p.wage * sc * 12 / 1000 - aiWages;     // mld PLN rocznie
 
       // 4. dochody gospodarstw i konsumpcja
       const netLabor = wageBill * (1 - (p.pit + p.cEmp) / 100);
@@ -104,7 +119,7 @@
       const r = p.rate + p.premium * Math.max(0, debtRatio - p.threshold) / 100;
 
       // 6. budżet (przepływy roczne, w kwartale dzielone przez 4)
-      const profits = 0.15 * pot * Math.pow(yRatio, p.profitElast);
+      const profits = 0.15 * pot * Math.pow(yRatio, p.profitElast) + 0.5 * aiWages; // firmy oszczędzają na płacach
       const rev = {
         pit: wageBill * p.pit / 100,
         contrib: wageBill * (p.cEmp + p.cEr) / 100,
@@ -131,7 +146,7 @@
       prevInfl = infl;
 
       out.push({
-        t, u, unat, unemployed, employed, wageBill, Y, gdpGapPct, cons, disp,
+        t, u: u + uAi, uCyc: u, uAi, unat, unemployed, employed, wageBill, Y, gdpGapPct, cons, disp,
         benefits: benefitsYr, revenue, spending, deficit,
         deficitPct: deficit / Y * 100, debt, debtPct: debt / Y * 100,
         r, infl, cumDef, rev, exp,
@@ -141,7 +156,8 @@
   }
 
   /** Podsumowanie scenariusza względem ścieżki bazowej. */
-  function summarize(sc, base, p) {
+  function summarize(sc, base, input) {
+    const p = Object.assign({}, DEFAULTS, input);
     const q = (a, f) => a.reduce((s, x, i) => s + (i > 0 ? f(x) : 0), 0) / 4;
     const lossGDP = q(base, x => x.Y) - q(sc, x => x.Y);
     const lossRev = q(base, x => x.revenue) - q(sc, x => x.revenue);
@@ -151,6 +167,8 @@
     const peak = (k) => sc.reduce((m, x) => Math.max(m, x[k]), -Infinity);
     return {
       peakU: peak("u"),
+      peakAi: peak("uAi"),
+      aiJobsPeak: Math.max.apply(null, sc.map(x => x.uAi * p.labor / 100)),
       peakDefPct: peak("deficitPct"),
       lossGDP, lossGDPpct: lossGDP / (base[0].Y * (sc.length - 1) / 4) * 100,
       lossRev, extraBen, extraInt,

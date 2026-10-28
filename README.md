@@ -7,6 +7,7 @@ Bez zależności i bez budowania. Otwórz `index.html` w przeglądarce.
 ## Co można ustawiać
 
 - **Szok na rynku pracy:** skala (pp), czas trwania, horyzont symulacji.
+- **Sztuczna inteligencja:** jaki odsetek pracowników umysłowych traci pracę przez AI, tempo wdrożenia, powrót do pracy, zysk produktywności.
 - **Polityka fiskalna:** stymulus, aktywizacja zawodowa, mnożnik fiskalny.
 - **Podatki i składki:** PIT, składki, VAT, CIT.
 - **Wydatki i zasiłki:** wydatki bazowe, wysokość i zasięg zasiłku.

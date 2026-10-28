@@ -15,6 +15,14 @@
       { k: "almp", l: "Aktywizacja zawodowa", u: "% PKB", min: 0, max: 2, step: 0.05, h: "Szkolenia, staże – zmniejszają skalę szoku" },
       { k: "multiplier", l: "Mnożnik fiskalny", u: "", min: 0, max: 2, step: 0.1 },
     ]},
+    { title: "Sztuczna inteligencja", open: true, items: [
+      { k: "aiLoss", l: "Pracownicy umysłowi tracący pracę przez AI", u: "%", min: 0, max: 60, step: 1, h: "Odsetek miejsc pracy umysłowej zastąpionych przez AI" },
+      { k: "aiShare", l: "Pracownicy umysłowi", u: "% zatrudnionych", min: 10, max: 80, step: 1 },
+      { k: "aiPhase", l: "Czas wdrożenia AI", u: " kw.", min: 1, max: 40, step: 1 },
+      { k: "aiReabs", l: "Powrót zwolnionych do pracy", u: "% rocznie", min: 0, max: 60, step: 1, h: "Przekwalifikowanie i nowe zawody po wdrożeniu" },
+      { k: "aiProd", l: "Zysk PKB z AI", u: "%", min: 0, max: 10, step: 0.5, h: "Wzrost produktywności przy pełnym wdrożeniu" },
+      { k: "aiWagePrem", l: "Płaca umysłowych vs przeciętna", u: "×", min: 1, max: 2.5, step: 0.05 },
+    ]},
     { title: "Podatki i składki", open: false, items: [
       { k: "pit", l: "Efektywny PIT", u: "%", min: 0, max: 25, step: 0.5 },
       { k: "cEmp", l: "Składki pracownika", u: "%", min: 0, max: 25, step: 0.5 },
@@ -51,6 +59,8 @@
     { n: "Kryzys finansowy", v: { shock: 5, duration: 10 } },
     { n: "Szok jak COVID", v: { shock: 4, duration: 3, stimulus: 3, hyst: 0.01 } },
     { n: "Głęboka depresja", v: { shock: 12, duration: 16, hyst: 0.05 } },
+    { n: "Rewolucja AI", v: { shock: 0, aiLoss: 20 } },
+    { n: "AI + recesja", v: { shock: 3, duration: 8, aiLoss: 15 } },
     { n: "Odpowiedź: stymulus", v: { shock: 5, duration: 10, stimulus: 2, almp: 0.4 } },
     { n: "Odpowiedź: cięcia", v: { shock: 5, duration: 10, otherSpend: 35, vat: 13, multiplier: 1.5 } },
   ];
@@ -200,7 +210,7 @@
 
   function buildCharts() {
     makeChart("u", "Stopa bezrobocia", "%", [
-      { n: "Scenariusz", c: "--c1" }, { n: "Stopa naturalna", c: "--c3" }, { n: "Bez szoku", c: "--c2", dash: true }], 1, "%");
+      { n: "Scenariusz (razem)", c: "--c1" }, { n: "W tym z powodu AI", c: "--c5" }, { n: "Stopa naturalna", c: "--c3" }, { n: "Bez szoku", c: "--c2", dash: true }], 1, "%");
     makeChart("gdp", "PKB", "mld zł, ceny stałe", [
       { n: "Scenariusz", c: "--c2" }, { n: "Bez szoku", c: "--c2", dash: true }], 0, "mld zł");
     makeChart("bud", "Dochody i wydatki budżetu", "mld zł rocznie", [
@@ -224,7 +234,7 @@
     const S = M.summarize(sc, base, params);
     const col = (a, k) => a.map((x) => x[k]);
 
-    drawChart(charts.u, [col(sc, "u"), col(sc, "unat"), col(base, "u")]);
+    drawChart(charts.u, [col(sc, "u"), col(sc, "uAi"), col(sc, "unat"), col(base, "u")]);
     drawChart(charts.gdp, [col(sc, "Y"), col(base, "Y")]);
     drawChart(charts.bud, [col(sc, "spending"), col(sc, "revenue"), col(base, "revenue")]);
     drawChart(charts.def, [col(sc, "deficitPct"), col(base, "deficitPct")]);
@@ -242,6 +252,7 @@
   function renderKpis(S) {
     const years = params.horizon / 4;
     const k = [
+      ...(S.aiJobsPeak > 0 ? [{ l: "Bezrobotni przez AI (szczyt)", v: fmt(S.aiJobsPeak * 1000, 0) + " tys.", s: fmt(S.peakAi, 1) + " pp stopy bezrobocia, " + fmt(params.aiLoss, 0) + "% pracowników umysłowych", cls: "bad" }] : []),
       { l: "Szczyt bezrobocia", v: fmt(S.peakU, 1) + "%", s: "start: " + fmt(params.u0, 1) + "%, stopa naturalna na końcu: " + fmt(S.unatEnd, 1) + "%", cls: S.peakU > params.u0 + 0.05 ? "bad" : "" },
       { l: "Utracone miejsca pracy (szczyt)", v: fmt(S.jobsLostPeak * 1000, 0) + " tys.", s: "względem scenariusza bez szoku", cls: S.jobsLostPeak > 0.001 ? "bad" : "" },
       { l: "Skumulowana strata PKB", v: fmt(S.lossGDP, 0) + " mld zł", s: fmt(S.lossGDPpct, 1) + "% PKB z " + fmt(years, 1) + " lat", cls: S.lossGDP > 1 ? "bad" : "" },
@@ -256,10 +267,11 @@
 
   function renderStory(S) {
     const p = params;
-    if (p.shock === 0) { $("story").textContent = "Brak szoku – gospodarka podąża ścieżką bazową. Zwiększ „Wzrost bezrobocia”, by zobaczyć skutki."; return; }
+    if (p.shock === 0 && p.aiLoss === 0) { $("story").textContent = "Brak szoku – gospodarka podąża ścieżką bazową. Zwiększ „Wzrost bezrobocia”, by zobaczyć skutki."; return; }
     let t = "Bezrobocie rośnie z " + fmt(p.u0, 1) + "% do " + fmt(S.peakU, 1) + "%. W tym czasie PKB traci łącznie " + fmt(S.lossGDP, 0) + " mld zł, " +
       "budżet traci " + fmt(S.lossRev, 0) + " mld zł dochodów i wydaje " + fmt(S.extraBen, 0) + " mld zł więcej na zasiłki, " +
       "a dodatkowe odsetki to " + fmt(S.extraInt, 0) + " mld zł. Dług na koniec jest o " + fmt(S.extraDebt, 0) + " mld zł wyższy niż bez szoku.";
+    if (S.aiJobsPeak > 0) t += " Sama AI odbiera pracę " + fmt(S.aiJobsPeak * 1000, 0) + " tys. pracowników umysłowych (to najlepiej opłacani, więc ubytek PIT i składek jest nieproporcjonalnie duży), choć firmy zyskują na płacach, a PKB rośnie dzięki produktywności.";
     if (S.unatEnd - p.u0 > 0.3) t += " Histereza podnosi trwale stopę naturalną o " + fmt(S.unatEnd - p.u0, 1) + " pp.";
     $("story").textContent = t;
   }
