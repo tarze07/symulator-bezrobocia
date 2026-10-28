@@ -268,7 +268,7 @@
   function renderStory(S) {
     const p = params;
     if (p.shock === 0 && p.aiLoss === 0) { $("story").textContent = "Brak szoku – gospodarka podąża ścieżką bazową. Zwiększ „Wzrost bezrobocia”, by zobaczyć skutki."; return; }
-    let t = "Bezrobocie rośnie z " + fmt(p.u0, 1) + "% do " + fmt(S.peakU, 1) + "%. W tym czasie PKB traci łącznie " + fmt(S.lossGDP, 0) + " mld zł, " +
+    let t = "Bezrobocie rośnie z " + fmt(p.u0, 1) + "% do " + fmt(S.peakU, 1) + "%. W tym czasie PKB " + (S.lossGDP >= 0 ? "traci łącznie " + fmt(S.lossGDP, 0) : "zyskuje łącznie " + fmt(-S.lossGDP, 0)) + " mld zł, " +
       "budżet traci " + fmt(S.lossRev, 0) + " mld zł dochodów i wydaje " + fmt(S.extraBen, 0) + " mld zł więcej na zasiłki, " +
       "a dodatkowe odsetki to " + fmt(S.extraInt, 0) + " mld zł. Dług na koniec jest o " + fmt(S.extraDebt, 0) + " mld zł wyższy niż bez szoku.";
     if (S.aiJobsPeak > 0) t += " Sama AI odbiera pracę " + fmt(S.aiJobsPeak * 1000, 0) + " tys. pracowników umysłowych (to najlepiej opłacani, więc ubytek PIT i składek jest nieproporcjonalnie duży), choć firmy zyskują na płacach, a PKB rośnie dzięki produktywności.";
