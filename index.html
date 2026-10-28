@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator bezrobocia</title>
+<meta name="description" content="Interaktywna symulacja: jak wzrost bezrobocia wpływa na PKB, budżet państwa, deficyt i dług publiczny.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Symulator bezrobocia</h1>
+  <p>Jak wzrost bezrobocia uderza w PKB, konsumpcję, budżet państwa i dług publiczny. Zmień parametry i obserwuj ścieżkę gospodarki kwartał po kwartale.</p>
+</header>
+
+<main class="layout">
+  <aside class="panel" id="controls">
+    <section>
+      <h2>Scenariusze</h2>
+      <div class="presets" id="presets"></div>
+    </section>
+    <div id="sliders"></div>
+    <button id="reset" type="button">Przywróć domyślne</button>
+  </aside>
+
+  <section class="results">
+    <div class="kpis" id="kpis"></div>
+    <p class="note" id="story"></p>
+
+    <div class="grid" id="charts"></div>
+
+    <div class="card">
+      <h3>Bilans szoku dla budżetu <small>(skumulowana różnica względem scenariusza bez szoku, mld PLN)</small></h3>
+      <div id="bridge"></div>
+    </div>
+
+    <details class="card">
+      <summary>Tabela kwartalna</summary>
+      <div class="tablewrap"><table id="table"></table></div>
+    </details>
+
+    <details class="card">
+      <summary>Jak działa model?</summary>
+      <div class="about">
+        <p>Model kwartalny w cenach stałych, skalibrowany z grubsza na gospodarkę zbliżoną do polskiej. Ma charakter <strong>edukacyjny</strong>, nie prognostyczny.</p>
+        <ul>
+          <li><b>Rynek pracy:</b> bezrobocie rośnie szybko do poziomu docelowego na czas szoku, potem wraca wolniej. <i>Histereza</i> podnosi stopę naturalną po długim bezrobociu.</li>
+          <li><b>PKB:</b> prawo Okuna, czyli każdy punkt procentowy bezrobocia ponad stan wyjściowy odbiera <i>k</i>% PKB.</li>
+          <li><b>Konsumpcja:</b> część dochodu rozporządzalnego (płace netto, zasiłki, dochody kapitałowe).</li>
+          <li><b>Dochody budżetu:</b> PIT i składki (od funduszu płac), VAT (od konsumpcji), CIT (od zysków, bardzo wrażliwych na koniunkturę), pozostałe.</li>
+          <li><b>Wydatki:</b> bazowe, zasiłki dla bezrobotnych, aktywizacja zawodowa, stymulus fiskalny, odsetki od długu.</li>
+          <li><b>Dług:</b> rośnie o deficyt. Powyżej progu zadłużenia rośnie premia za ryzyko, więc koszt obsługi długu.</li>
+          <li><b>Inflacja:</b> krzywa Phillipsa, czyli wyższe bezrobocie obniża inflację (z inercją).</li>
+          <li><b>Polityka:</b> stymulus obniża bezrobocie i podnosi PKB (mnożnik fiskalny), aktywizacja zmniejsza skalę szoku.</li>
+        </ul>
+        <p>Linie przerywane na wykresach to ścieżka bazowa, czyli ta sama gospodarka bez szoku. Szare tło oznacza czas trwania szoku.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<footer>Model uproszczony, wyniki ilustrują mechanizmy, a nie przewidują przyszłości.</footer>
+
+<script src="model.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
